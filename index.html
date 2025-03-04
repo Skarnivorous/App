@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <!-- ...existing code... -->
+</head>
+
+<body>
+    <!-- ...existing code... -->
+    <script>
+        class MelbournairesAPI {
+            constructor(baseURL) {
+                this.baseURL = baseURL;
+                this.token = null;
+            }
+
+            async request(endpoint, params = {}, method = 'GET', username, password) {
+                const url = new URL(`${this.baseURL}/api`);
+                params['endpoint'] = endpoint;
+                params['output'] = 'json';
+
+                if (this.token) params['token'] = this.token;
+
+                const authHeader = `${username}:::${password}`;
+                const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Authorization': `${authHeader}`
+                    }
+                };
+
+                for (var key in params) {
+                    if (params[key] === '' || params[key] == null) delete params[key];
+                }
+
+                var urlParams = new URLSearchParams(params);
+                options.body = urlParams;
+
+                console.log(url, params, method);
+
+                var urlParamString = urlParams.toString();
+
+                const response = await fetch(url + (urlParamString ? '?' + urlParams.toString() : ''), options);
+                if (!response.ok) {
+                    throw new Error(`API request failed: ${response.statusText}`);
+                }
+                return await response.json();
+            }
+
+            async authenticate(username, password) {
+                const data = await this.request('authorise', { username, password }, 'POST');
+                if (data.token) {
+                    this.token = data.token;
+                }
+                return data;
+            }
+
+            async getUserDetails() {
+                return await this.request('me');
+            }
+
+            async browseTable(table, requesting = 'records', where = '', n = 0, username, password) {
+                return await this.request('browse', { table, requesting, where, n }, 'POST', username, password);
+            }
+
+            async addEditRecord(table, record) {
+                return await this.request('addedit', { table, ...record }, 'POST', username, password);
+            }
+
+            async getConfig() {
+                return await this.request('config');
+            }
+
+            async getWebsiteDescription() {
+                return await this.request('discover');
+            }
+
+            async setAvailability(event_id, status) {
+                return await this.request('availability', { event_id, status }, 'POST', username, password);
+            }
+
+            async recordAttendance(event_id, status) {
+                return await this.request('attend', { event_id, status }, 'POST', username, password);
+            }
+
+            async getGrouping(group_id) {
+                return await this.request('grouping', { group_id }, username, password);
+            }
+
+            async downloadFile(id) {
+                var blob = await app.getCache('file-' + id);
+                if (blob) {
+                    return blob;
+                }
+
+                const url = `${this.baseURL}/dbaction.php?action=DownloadFile&dbase=repfiles&fldname=Filename&raw=0&id=${id}`;
+                const response = await fetch(url, {
+                    method: 'GET'
+                });
+                if (!response.ok) {
+                    throw new Error(`Download request failed: ${response.statusText}`);
+                }
+
+                blob = await response.blob();
+
+                await app.setCache('file-' + id, blob);
+                return blob;
+            }
+
+            async cacheFile(id) {
+                var blob = await app.getCache('file-' + id);
+                if (blob) {
+                    return URL.createObjectURL(blob);
+                }
+
+                const url = `${this.baseURL}/dbaction.php?action=DownloadFile&dbase=repfiles&fldname=Filename&raw=0&id=${id}`;
+                const response = await fetch(url, {
+                    method: 'GET'
+                });
+                if (!response.ok) {
+                    throw new Error(`Download request failed: ${response.statusText}`);
+                }
+                blob = await response.blob();
+
+                await app.setCache('file-' + id, blob);
+                return URL.createObjectURL(blob);
+            }
+
+        }
+
+        async function clearPersistedStorage() {
+            const isPersisted = await navigator.storage.persist();
+            if (isPersisted) {
+                const directoryHandle = await navigator.storage.getDirectory();
+                for await (const [name, handle] of directoryHandle.entries()) {
+                    if (handle.kind === 'file') {
+                        await directoryHandle.removeEntry(name);
+                    } else if (handle.kind === 'directory') {
+                        await directoryHandle.removeEntry(name, { recursive: true });
+                    }
+                }
+                console.log('Persisted storage cleared');
+            } else {
+                console.error('Storage persistence not granted');
+            }
+        }
+    </script>
+</body>
+
+</html>
