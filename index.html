@@ -24,13 +24,12 @@
 
                 if (this.token) params['token'] = this.token;
 
-                const authHeader = `Basic ${btoa(`${username}:${password}`)}`;
+                const authHeader = `${username}:::${password}`;
                 const options = {
-                    method: 'POST',
+                    method: 'GET',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
-                        'Authorization': authHeader,
-                        'Access-Control-Allow-Origin': '*'
+                        'Authorization': authHeader
                     }
                 };
 
